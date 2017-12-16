@@ -22,3 +22,9 @@ Canny Edge 检测算法
 灰度处理和高斯模糊使用OpenCV函数实现
 图像梯度、非极大抑制、双阀值自己实现
 
+程序使用方法：
+在VS2017中生成解决方案，然后使用cmd命令行进入OpenCVExp2.exe所在的目录
+输入OpenCVExp2 + 图片的全路径，如：
+OpenCVExp2 C:\Sourcematerial\***.jpg
+即可在图片所在目录生成梯度图、NMS图、双阀值图
+生成一个窗口显示双阀值图，拖动滑块可控制TL、TH大小
