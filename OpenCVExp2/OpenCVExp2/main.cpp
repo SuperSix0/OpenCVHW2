@@ -49,9 +49,9 @@ unsigned char clamp(float value)
 	return value > 255 ? 255 : (value < 0 ? 0 : value);
 }
 
-Mat GradientFilter(Mat src, float* angle)
+void GradientFilter(Mat src, Mat dst, float* angle)
 {
-	Mat dst(src.rows, src.cols, src.type());
+	dst = Mat(src.rows, src.cols, src.type());
 	int height = src.rows;
 	int width = src.cols;
 	int row, col;
@@ -85,12 +85,11 @@ Mat GradientFilter(Mat src, float* angle)
 				angle[i * width + j] = atan(x / y) + 90;
 		}
 	}
-	return dst;
 }
 
-Mat NMS(Mat src, float* angle)
+void NonMaximalSuppression(Mat src, Mat dst, float* angle)
 {
-	Mat dst(src.rows, src.cols, src.type());
+	dst = Mat(src.rows, src.cols, src.type());
 	int height = src.rows;
 	int width = src.cols;
 	int row, col;
@@ -152,14 +151,51 @@ Mat NMS(Mat src, float* angle)
 			}
 		}
 	}
-	return dst;
+}
+
+void edgeLink(Mat src, Mat dst, int row, int col, float threshold)
+{
+	int height = src.rows;
+	int width = src.cols;
+	int newrow, newcol;
+	*(dst.data + row * width + col) = 255;
+	for (int i = -1; i <= 1; i++)
+	{
+		for (int j = -1; j <= 1; j++)
+		{
+			newrow = row + i;
+			newcol = col + j;
+			newrow = newrow < 0 ? 0 : (newrow >= height ? (height - 1) : newrow);
+			newcol = newcol < 0 ? 0 : (newcol >= width ? (width - 1) : newcol);
+			if (*(src.data + newrow * width + newcol) >= threshold && *(dst.data + newrow * width + newcol) == 0)
+			{
+				edgeLink(src, dst, newrow, newcol, threshold);
+				return;
+			}
+		}
+	}
+}
+
+void DoubleThresholdEdgeConnection(Mat src, Mat dst, float lowThreshold,float highThreshold)
+{
+	dst = Mat(src.rows, src.cols, src.type(),Scalar(0));
+	int height = src.rows;
+	int width = src.cols;
+	for (int i = 0; i < height; i++)
+	{
+		for (int j = 0; j < width; j++)
+		{
+			if (*(src.data + i * width + j) >= highThreshold && *(dst.data + i * width + j) == 0)
+				edgeLink(src, dst, i, j, lowThreshold);
+		}
+	}
 }
 
 int main(int argc, char** argv)
 {
 	string path;
 	vector <string> pic;
-	Mat picture, grayPicture, gaussianPicture, gradientPicture, NMSPicture;
+	Mat picture, GrayPicture, GaussianPicture, gradientPicture, NMSPicture, DTECPicture, BinaryzationPicture;
 	float *angle;
 	int lowThreshold, highThreshold;
 	cout << "ÇëÊäÈëTL TH£º" << endl;
@@ -174,18 +210,21 @@ int main(int argc, char** argv)
 			picture = imread(path + "\\" + pic[i]);
 			angle = (float *)malloc(sizeof(float) * picture.rows * picture.cols);
 			
-			cvtColor(picture, grayPicture, CV_RGB2GRAY);
-			//imwrite(path + "\\»Ò¶ÈÍ¼_" + pic[i], grayPicture);
+			cvtColor(picture, GrayPicture, CV_RGB2GRAY);
+			//imwrite(path + "\\»Ò¶ÈÍ¼_" + pic[i], GrayPicture);
 			
-			GaussianBlur(grayPicture, gaussianPicture, Size(5, 5), 0, 0);
+			GaussianBlur(GrayPicture, GaussianPicture, Size(5, 5), 0, 0);
 			//imwrite(path + "\\¸ßË¹ÂË²¨_" + pic[i], gaussianPicture);
 			
-			gradientPicture = GradientFilter(gaussianPicture, angle);
+			GradientFilter(GaussianPicture, gradientPicture, angle);
 			imwrite(path + "\\ÌÝ¶ÈÍ¼_" + pic[i], gradientPicture);
 			
-			NMSPicture = NMS(gradientPicture, angle);
+			NonMaximalSuppression(gradientPicture, NMSPicture, angle);
 			imwrite(path + "\\NMSÍ¼_" + pic[i], NMSPicture);
 			
+			DoubleThresholdEdgeConnection(NMSPicture, DTECPicture, lowThreshold, highThreshold);
+			imwrite(path + "\\Ë«·§ÖµÍ¼_" + pic[i], DTECPicture);
+
 			free(angle);
 		}
 	}
