@@ -2,60 +2,37 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <opencv2/core/core.hpp>
 #include <opencv2\highgui\highgui.hpp>
 #include <opencv2\imgproc\imgproc.hpp>
 
 using namespace cv;
 using namespace std;
 
-void getAllFiles(string path, vector<string>& pic)
-{
-	long File = 0;
-	struct _finddata_t fileinfo;
-	string p = path;
-	if ((File = _findfirst((p + "\\*").c_str(), &fileinfo)) != -1)
-	{
-		do
-		{
-			if (strstr(fileinfo.name, ".bmp") != NULL
-				|| strstr(fileinfo.name, ".dib") != NULL
-				|| strstr(fileinfo.name, ".jpeg") != NULL
-				|| strstr(fileinfo.name, ".jpg") != NULL
-				|| strstr(fileinfo.name, ".jpe") != NULL
-				|| strstr(fileinfo.name, ".jp2") != NULL
-				|| strstr(fileinfo.name, ".png") != NULL
-				|| strstr(fileinfo.name, ".pbm") != NULL
-				|| strstr(fileinfo.name, ".pgm") != NULL
-				|| strstr(fileinfo.name, ".ppm") != NULL
-				|| strstr(fileinfo.name, ".sr") != NULL
-				|| strstr(fileinfo.name, ".ras") != NULL
-				|| strstr(fileinfo.name, ".tiff") != NULL
-				|| strstr(fileinfo.name, ".tif") != NULL)		//Ñ°ÕÒ·ûºÏ¸ñÊ½µÄÍ¼Æ¬ÎÄ¼þ
-				pic.push_back(fileinfo.name);
-		} while (_findnext(File, &fileinfo) == 0);
-		_findclose(File);
-	}
-}
+int g_nThresh_low = 25;
+int g_nThresh_high = 50;
+Mat picture, GrayPicture, GaussianPicture, gradientPicture, NMSPicture, DTECPicture, BinaryzationPicture;
+string path,pic;
 
-int SOBEL_X[3][3] ={{ -1, 0, 1 },
-					{ -2, 0, 2 },
-					{ -1, 0, 1 } };
-int SOBEL_Y[3][3] ={{ -1, -2, -1 },
-					{  0,  0,  0 },
-					{  1,  2,  1 } };
+int SOBEL_X[3][3] = { { -1, 0, 1 },
+{ -2, 0, 2 },
+{ -1, 0, 1 } };
+int SOBEL_Y[3][3] = { { -1, -2, -1 },
+{ 0,  0,  0 },
+{ 1,  2,  1 } };
 
-unsigned char clamp(float value)
+unsigned char clamp(unsigned char value)
 {
 	return value > 255 ? 255 : (value < 0 ? 0 : value);
 }
 
-void GradientFilter(Mat src, Mat dst, float* angle)
+Mat GradientFilter(Mat src, double* angle)
 {
-	dst = Mat(src.rows, src.cols, src.type());
+	Mat dst = Mat(src.rows, src.cols, src.type());
 	int height = src.rows;
 	int width = src.cols;
 	int row, col;
-	float x,y,g;
+	float x, y, g;
 	for (int i = 0; i < height; i++)
 	{
 		for (int j = 0; j < width; j++)
@@ -76,20 +53,21 @@ void GradientFilter(Mat src, Mat dst, float* angle)
 				}
 			}
 			g = sqrt(x * x + y * y);
-			dst.data[i * width + j] = clamp(g);
-			if(x == 0)
-				angle[i * width + j] = (y > 0 ? 180 : 0);
+			dst.data[i * width + j] = clamp((unsigned char)g);
+			if (x == 0)
+				angle[i * width + j] = (y > 0 ? 180.0 : 0.0);
 			else if (y == 0)
 				angle[i * width + j] = 90;
 			else
 				angle[i * width + j] = atan(x / y) + 90;
 		}
 	}
+	return dst;
 }
 
-void NonMaximalSuppression(Mat src, Mat dst, float* angle)
+Mat NonMaximalSuppression(Mat src, double* angle)
 {
-	dst = Mat(src.rows, src.cols, src.type());
+	Mat dst = Mat(src.rows, src.cols, src.type());
 	int height = src.rows;
 	int width = src.cols;
 	int row, col;
@@ -104,7 +82,7 @@ void NonMaximalSuppression(Mat src, Mat dst, float* angle)
 			if ((angle[index] >= 0 && angle[index] < 22.5) || (angle[index] >= 157.5 && angle[index] < 180))
 			{
 				row = i;
-				col = (j - 1) < 0 ? j : (j -1);
+				col = (j - 1) < 0 ? j : (j - 1);
 				if (t < *(src.data + row * width + col))
 					*(dst.data + index) = 0;
 
@@ -120,7 +98,7 @@ void NonMaximalSuppression(Mat src, Mat dst, float* angle)
 				if (t < *(src.data + row * width + col))
 					*(dst.data + index) = 0;
 
-				row = (i + 1) >=height ? i : (i + 1);
+				row = (i + 1) >= height ? i : (i + 1);
 				col = (j - 1) < 0 ? j : (j - 1);
 				if (t < *(src.data + row * width + col))
 					*(dst.data + index) = 0;
@@ -151,9 +129,10 @@ void NonMaximalSuppression(Mat src, Mat dst, float* angle)
 			}
 		}
 	}
+	return dst;
 }
 
-void edgeLink(Mat src, Mat dst, int row, int col, float threshold)
+void edgeLink(Mat src, Mat dst, int row, int col, int threshold)
 {
 	int height = src.rows;
 	int width = src.cols;
@@ -176,9 +155,9 @@ void edgeLink(Mat src, Mat dst, int row, int col, float threshold)
 	}
 }
 
-void DoubleThresholdEdgeConnection(Mat src, Mat dst, float lowThreshold,float highThreshold)
+Mat DoubleThresholdEdgeConnection(Mat src, int lowThreshold, int highThreshold)
 {
-	dst = Mat(src.rows, src.cols, src.type(),Scalar(0));
+	Mat dst = Mat(src.rows, src.cols, src.type(),Scalar(0));
 	int height = src.rows;
 	int width = src.cols;
 	for (int i = 0; i < height; i++)
@@ -189,44 +168,55 @@ void DoubleThresholdEdgeConnection(Mat src, Mat dst, float lowThreshold,float hi
 				edgeLink(src, dst, i, j, lowThreshold);
 		}
 	}
+	return dst;
+}
+
+void on_Trackbar(int, void*)
+{
+	//cout << "Threshold value: " << endl;
+	//cout << "High: " << g_nThresh_high << endl;
+	//cout << "Low: " << g_nThresh_low << endl << endl;
+	DTECPicture = DoubleThresholdEdgeConnection(NMSPicture, g_nThresh_low, g_nThresh_high);
+	imwrite(path + "\\Ë«·§ÖµÍ¼_" + pic, DTECPicture);
+	imshow("Edge Detection", DTECPicture);
 }
 
 int main(int argc, char** argv)
 {
-	string path;
-	vector <string> pic;
-	Mat picture, GrayPicture, GaussianPicture, gradientPicture, NMSPicture, DTECPicture, BinaryzationPicture;
-	float *angle;
-	int lowThreshold, highThreshold;
-	cout << "ÇëÊäÈëTL TH£º" << endl;
-	cin >> lowThreshold >> highThreshold;
-	for (int i = 1; i < argc; i++)
-	{
-		path = *(argv + i);
-		pic.clear();
-		getAllFiles(path, pic);
-		for (unsigned int i = 0; i < pic.size(); i++)
-		{
-			picture = imread(path + "\\" + pic[i]);
-			angle = (float *)malloc(sizeof(float) * picture.rows * picture.cols);
-			
-			cvtColor(picture, GrayPicture, CV_RGB2GRAY);
-			//imwrite(path + "\\»Ò¶ÈÍ¼_" + pic[i], GrayPicture);
-			
-			GaussianBlur(GrayPicture, GaussianPicture, Size(5, 5), 0, 0);
-			//imwrite(path + "\\¸ßË¹ÂË²¨_" + pic[i], gaussianPicture);
-			
-			GradientFilter(GaussianPicture, gradientPicture, angle);
-			imwrite(path + "\\ÌÝ¶ÈÍ¼_" + pic[i], gradientPicture);
-			
-			NonMaximalSuppression(gradientPicture, NMSPicture, angle);
-			imwrite(path + "\\NMSÍ¼_" + pic[i], NMSPicture);
-			
-			DoubleThresholdEdgeConnection(NMSPicture, DTECPicture, lowThreshold, highThreshold);
-			imwrite(path + "\\Ë«·§ÖµÍ¼_" + pic[i], DTECPicture);
+	double *angle;
+	path = argv[1];
+	pic = path.substr(path.find_last_of("\\") + 1);
+	path = path.substr(0, path.find_last_of("\\"));
+	//cout << path << endl << pic;
+	//getchar();
+	picture = imread(path + "\\" + pic);
+	angle = (double *)malloc(sizeof(double) * picture.rows * picture.cols);
 
-			free(angle);
-		}
-	}
+	cvtColor(picture, GrayPicture, CV_RGB2GRAY);
+	//imwrite(path + "\\»Ò¶ÈÍ¼_" + pic[i], GrayPicture);
+
+	GaussianBlur(GrayPicture, GaussianPicture, Size(5, 5), 0, 0);
+	//imwrite(path + "\\¸ßË¹ÂË²¨_" + pic[i], gaussianPicture);
+
+	gradientPicture = GradientFilter(GaussianPicture, angle);
+	imwrite(path + "\\ÌÝ¶ÈÍ¼_" + pic, gradientPicture);
+
+	NMSPicture = NonMaximalSuppression(gradientPicture, angle);
+	imwrite(path + "\\NMSÍ¼_" + pic, NMSPicture);
+	free(angle);
+
+	DTECPicture = DoubleThresholdEdgeConnection(NMSPicture, g_nThresh_low, g_nThresh_high);
+	imwrite(path + "\\Ë«·§ÖµÍ¼_" + pic, DTECPicture);
+
+	namedWindow("Edge Detection");
+	imshow("Edge Detection", DTECPicture);
+
+	createTrackbar("Low: 255", "Edge Detection", &g_nThresh_low, 255, on_Trackbar);
+	createTrackbar("High: 255", "Edge Detection", &g_nThresh_high, 255, on_Trackbar);
+
+	on_Trackbar(g_nThresh_low, 0);
+	on_Trackbar(g_nThresh_high, 0);
+
+	waitKey(0);
 	return 0;
 }

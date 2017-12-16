@@ -1,6 +1,7 @@
 ﻿  main.cpp
-c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(16): warning C4244: “=”: 从“intptr_t”转换到“long”，可能丢失数据
-c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(49): warning C4244: “return”: 从“float”转换到“unsigned char”，可能丢失数据
-c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(81): warning C4244: “=”: 从“int”转换到“float”，可能丢失数据
-c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(225): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(23): warning C4244: “=”: 从“intptr_t”转换到“long”，可能丢失数据
+c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(56): warning C4244: “return”: 从“float”转换到“unsigned char”，可能丢失数据
+c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(88): warning C4244: “=”: 从“int”转换到“float”，可能丢失数据
+c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(212): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
+c:\users\administrator\source\repos\opencvexp2\opencvexp2\main.cpp(244): warning C4244: “参数”: 从“int”转换到“float”，可能丢失数据
   OpenCVExp2.vcxproj -> C:\Users\Administrator\source\repos\OpenCVExp2\x64\Debug\OpenCVExp2.exe
