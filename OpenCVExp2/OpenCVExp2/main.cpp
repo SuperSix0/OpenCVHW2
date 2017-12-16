@@ -9,17 +9,18 @@
 using namespace cv;
 using namespace std;
 
-int g_nThresh_low = 25;
-int g_nThresh_high = 50;
+int TL = 25;
+int TH = 50;
 Mat picture, GrayPicture, GaussianPicture, gradientPicture, NMSPicture, DTECPicture, BinaryzationPicture;
 string path,pic;
+double *angle;
 
 int SOBEL_X[3][3] = { { -1, 0, 1 },
-{ -2, 0, 2 },
-{ -1, 0, 1 } };
+					  { -2, 0, 2 },
+					  { -1, 0, 1 } };
 int SOBEL_Y[3][3] = { { -1, -2, -1 },
-{ 0,  0,  0 },
-{ 1,  2,  1 } };
+					  {  0,  0,  0 },
+					  {  1,  2,  1 } };
 
 unsigned char clamp(unsigned char value)
 {
@@ -146,7 +147,7 @@ void edgeLink(Mat src, Mat dst, int row, int col, int threshold)
 			newcol = col + j;
 			newrow = newrow < 0 ? 0 : (newrow >= height ? (height - 1) : newrow);
 			newcol = newcol < 0 ? 0 : (newcol >= width ? (width - 1) : newcol);
-			if (*(src.data + newrow * width + newcol) >= threshold && *(dst.data + newrow * width + newcol) == 0)
+			if (*(src.data + newrow * width + newcol) > threshold && *(dst.data + newrow * width + newcol) == 0)
 			{
 				edgeLink(src, dst, newrow, newcol, threshold);
 				return;
@@ -174,22 +175,29 @@ Mat DoubleThresholdEdgeConnection(Mat src, int lowThreshold, int highThreshold)
 void on_Trackbar(int, void*)
 {
 	//cout << "Threshold value: " << endl;
-	//cout << "High: " << g_nThresh_high << endl;
-	//cout << "Low: " << g_nThresh_low << endl << endl;
-	DTECPicture = DoubleThresholdEdgeConnection(NMSPicture, g_nThresh_low, g_nThresh_high);
+	//cout << "High: " << TH << endl;
+	//cout << "Low: " << TL << endl << endl;
+	DTECPicture = DoubleThresholdEdgeConnection(NMSPicture, TL, TH);
 	imwrite(path + "\\Ë«·§ÖµÍ¼_" + pic, DTECPicture);
 	imshow("Edge Detection", DTECPicture);
 }
 
-int main(int argc, char** argv)
+int main()
 {
-	double *angle;
-	path = argv[1];
+	cout << "ÇëÊäÈëÍ¼Æ¬Â·¾¶£¨º¬Í¼Æ¬ÎÄ¼þÃû£©" << endl;
+	cin >> path;
+	
 	pic = path.substr(path.find_last_of("\\") + 1);
 	path = path.substr(0, path.find_last_of("\\"));
 	//cout << path << endl << pic;
 	//getchar();
 	picture = imread(path + "\\" + pic);
+	while (picture.empty())
+	{
+		cout << "¶ÁÈëÊ§°Ü£¬ÇëÊäÈëÕýÈ·Í¼Æ¬Â·¾¶" << endl;
+		picture = imread(path + "\\" + pic);
+	}
+
 	angle = (double *)malloc(sizeof(double) * picture.rows * picture.cols);
 
 	cvtColor(picture, GrayPicture, CV_RGB2GRAY);
@@ -205,17 +213,17 @@ int main(int argc, char** argv)
 	imwrite(path + "\\NMSÍ¼_" + pic, NMSPicture);
 	free(angle);
 
-	DTECPicture = DoubleThresholdEdgeConnection(NMSPicture, g_nThresh_low, g_nThresh_high);
+	DTECPicture = DoubleThresholdEdgeConnection(NMSPicture, TL, TH);
 	imwrite(path + "\\Ë«·§ÖµÍ¼_" + pic, DTECPicture);
 
 	namedWindow("Edge Detection");
 	imshow("Edge Detection", DTECPicture);
 
-	createTrackbar("Low: 255", "Edge Detection", &g_nThresh_low, 255, on_Trackbar);
-	createTrackbar("High: 255", "Edge Detection", &g_nThresh_high, 255, on_Trackbar);
+	createTrackbar("Low: 255", "Edge Detection", &TL, 255, on_Trackbar);
+	createTrackbar("High: 255", "Edge Detection", &TH, 255, on_Trackbar);
 
-	on_Trackbar(g_nThresh_low, 0);
-	on_Trackbar(g_nThresh_high, 0);
+	on_Trackbar(TL, 0);
+	on_Trackbar(TH, 0);
 
 	waitKey(0);
 	return 0;
